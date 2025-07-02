@@ -19,7 +19,9 @@ import {
   Search,
   Filter,
   BarChart3,
-  Settings
+  Settings,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { 
   memberService, 
@@ -28,6 +30,7 @@ import {
   chamaService,
   utils,
   subscriptions,
+  checkSupabaseConnection,
   type Member,
   type Chama
 } from './lib/supabase';
@@ -69,28 +72,46 @@ function App() {
   const [selectedChama, setSelectedChama] = useState<Chama | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   
   // Form states
   const [newMember, setNewMember] = useState({ name: '', phone_number: '' });
 
+  // Check Supabase connection on mount
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    setConnectionStatus('checking');
+    const isConnected = await checkSupabaseConnection();
+    setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+    
+    if (isConnected) {
+      loadDashboardData();
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
-    loadDashboardData();
-    
-    // Set up real-time subscriptions
-    const membersSubscription = subscriptions.subscribeToMembers(() => {
+    if (connectionStatus === 'connected') {
       loadDashboardData();
-    });
-    
-    const paymentsSubscription = subscriptions.subscribeToPayments(() => {
-      loadDashboardData();
-    });
+      
+      // Set up real-time subscriptions
+      const membersSubscription = subscriptions.subscribeToMembers(() => {
+        loadDashboardData();
+      });
+      
+      const paymentsSubscription = subscriptions.subscribeToPayments(() => {
+        loadDashboardData();
+      });
 
-    return () => {
-      membersSubscription.unsubscribe();
-      paymentsSubscription.unsubscribe();
-    };
-  }, []);
+      return () => {
+        membersSubscription.unsubscribe();
+        paymentsSubscription.unsubscribe();
+      };
+    }
+  }, [connectionStatus]);
 
   // Filter members based on search and payment status
   useEffect(() => {
@@ -115,6 +136,8 @@ function App() {
   }, [members, searchTerm, paymentFilter]);
 
   const loadDashboardData = async () => {
+    if (connectionStatus !== 'connected') return;
+    
     setLoading(true);
     try {
       await Promise.all([
@@ -124,7 +147,6 @@ function App() {
       ]);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      alert('Error loading data. Please check your Supabase connection.');
     } finally {
       setLoading(false);
     }
@@ -355,13 +377,55 @@ function App() {
     </div>
   );
 
+  // Connection status display
+  if (connectionStatus === 'checking') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Connecting to Supabase</h2>
+          <p className="text-gray-600">Checking database connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (connectionStatus === 'disconnected') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <WifiOff className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Supabase Not Connected</h2>
+          <p className="text-gray-600 mb-6">
+            Please connect to Supabase to use the Chama Manager. Click the "Connect to Supabase" button in the top right corner.
+          </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-yellow-800 mb-2">Setup Instructions:</h3>
+            <ol className="text-sm text-yellow-700 text-left space-y-1">
+              <li>1. Click "Connect to Supabase" button</li>
+              <li>2. Create or select your Supabase project</li>
+              <li>3. The database will be automatically set up</li>
+              <li>4. 100 Kenyan members will be added for testing</li>
+            </ol>
+          </div>
+          <button
+            onClick={checkConnection}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading && members.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard</h2>
-          <p className="text-gray-600">Connecting to Supabase...</p>
+          <p className="text-gray-600">Fetching your Chama data...</p>
         </div>
       </div>
     );
@@ -381,9 +445,15 @@ function App() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                   Chama Manager Pro
                 </h1>
-                <p className="text-sm text-gray-500 hidden sm:block">
-                  Powered by Supabase • {members.length} Members
-                </p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-500 hidden sm:block">
+                    Powered by Supabase • {members.length} Members
+                  </p>
+                  <div className="flex items-center space-x-1">
+                    <Wifi className="w-3 h-3 text-green-500" />
+                    <span className="text-xs text-green-600 font-medium">Connected</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">

@@ -4,10 +4,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please connect to Supabase first.')
+  console.warn('Supabase environment variables not found. Please connect to Supabase first.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder-key'
+)
 
 // Database types
 export interface Member {
@@ -42,16 +45,21 @@ export interface Settings {
 // Enhanced API functions with better error handling and features
 export const memberService = {
   async getAll(): Promise<Member[]> {
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching members:', error)
-      throw new Error(`Failed to fetch members: ${error.message}`)
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Error fetching members:', error)
+        throw new Error(`Failed to fetch members: ${error.message}`)
+      }
+      return data || []
+    } catch (error: any) {
+      console.error('Member service error:', error)
+      return []
     }
-    return data || []
   },
 
   async create(member: Omit<Member, 'id' | 'created_at'>): Promise<Member> {
@@ -222,7 +230,7 @@ export const paymentService = {
     
     if (error) {
       console.error('Error fetching recent payments:', error)
-      throw new Error(`Failed to fetch recent payments: ${error.message}`)
+      return []
     }
     return data?.map(payment => ({
       ...payment,
@@ -237,7 +245,7 @@ export const paymentService = {
     
     if (error) {
       console.error('Error fetching total collected:', error)
-      throw new Error(`Failed to fetch total collected: ${error.message}`)
+      return 0
     }
     return data?.reduce((sum, payment) => sum + payment.amount, 0) || 0
   },
@@ -252,7 +260,7 @@ export const paymentService = {
     
     if (error) {
       console.error('Error fetching payments by date range:', error)
-      throw new Error(`Failed to fetch payments by date range: ${error.message}`)
+      return []
     }
     return data || []
   },
@@ -289,7 +297,7 @@ export const chamaService = {
     
     if (error) {
       console.error('Error fetching chamas:', error)
-      throw new Error(`Failed to fetch chamas: ${error.message}`)
+      return []
     }
     return data || []
   },
@@ -317,7 +325,7 @@ export const chamaService = {
     
     if (error) {
       console.error('Error fetching upcoming chamas:', error)
-      throw new Error(`Failed to fetch upcoming chamas: ${error.message}`)
+      return []
     }
     return data || []
   }
@@ -445,6 +453,17 @@ export const utils = {
   }
 }
 
+// Connection status check
+export const checkSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.from('members').select('count').limit(1)
+    return !error
+  } catch (error) {
+    console.error('Supabase connection failed:', error)
+    return false
+  }
+}
+
 // Export everything for easy access
 export default {
   supabase,
@@ -453,5 +472,6 @@ export default {
   chamaService,
   settingsService,
   subscriptions,
-  utils
+  utils,
+  checkSupabaseConnection
 }
