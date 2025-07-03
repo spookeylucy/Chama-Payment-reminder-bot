@@ -238,4 +238,4 @@ For issues or questions:
 - Responsive dashboard with HTMX
 - Automated daily reminders
 - MySQL database with auto-initialization
-- Production-ready deployment configuration
+- Production-ready deployment                 configuration                                                                            https://www.canva.com/design/DAGsHKsdCfI/NvX9wWLzr1z_VNqXnOZJxQ/edit?utm_content=DAGsHKsdCfI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton                                                                        
