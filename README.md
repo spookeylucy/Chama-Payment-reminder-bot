@@ -45,7 +45,7 @@ A Flask-based WhatsApp Chama (savings group) management system with automated re
 ## 🎯 Features
 
 ### Database Schema
-- **members**: id, name, phone_number, has_paid, last_payment
+- **members**: Identification Document, Name, Phone_Number, Has_Paid, Last_Payment
 - **settings**: id, due_date
 
 ### Backend API Endpoints
